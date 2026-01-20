@@ -1,0 +1,44 @@
+test_info:
+  name: "Speed Load Thermal Test"
+  description: "Verify motor speed stability and temperature under load"
+  author: "Test Engineer"
+  version: "1.0"
+
+global_settings:
+  sample_rate_hz: 10        # How often we sample motor status
+  max_test_time_s: 120
+
+sequence:
+  - step: start_motor
+    description: "Start the motor"
+
+  - step: set_speed
+    rpm: 2000
+    description: "Ramp motor to 2000 RPM"
+
+  - step: wait
+    duration_s: 30
+    description: "Allow motor to stabilize"
+
+  - step: apply_load
+    load_nm: 5.0
+    description: "Apply mechanical load"
+
+  - step: monitor
+    duration_s: 10
+    criteria:
+      speed_rpm:
+        min: 1850
+        max: 2150
+      temperature_c:
+        max: 90
+    description: "Check speed stability and temperature"
+
+  - step: remove_load
+    description: "Remove load"
+
+  - step: stop_motor
+    description: "Soft stop motor"
+
+  - step: end_test
+    description: "End of test"
