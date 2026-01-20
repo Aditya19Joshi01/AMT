@@ -1,2 +1,10 @@
 .venv
 __pycache__
+
+# Ignore everything
+TestConfigs/*
+TestReports/*
+
+# But keep these specific files
+!TestConfigs/sample_test.yaml
+!TestReports/report_Speed_Load_Thermal_Test_20260120_183545.json

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from .dependencies import controller
-from .routers import motor, tests
+from .routers import motor, tests, reports
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,6 +22,7 @@ app = FastAPI(
 # Include Routers
 app.include_router(motor.router)
 app.include_router(tests.router)
+app.include_router(reports.router)
 
 @app.get("/")
 def home():

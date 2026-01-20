@@ -1,0 +1,155 @@
+{
+  "test_info": {
+    "name": "Speed Load Thermal Test",
+    "version": "1.0",
+    "author": "Test Engineer",
+    "description": "Verify motor speed stability and temperature under load"
+  },
+  "execution_info": {
+    "test_id": "test_9b09a921",
+    "started_at": "2026-01-20T18:35:45.305758",
+    "ended_at": "2026-01-20T18:36:25.371883",
+    "duration_s": 40.066125,
+    "status": "PASS",
+    "environment": "SIMULATION"
+  },
+  "summary": {
+    "overall_result": "PASS",
+    "passed_steps": 8,
+    "failed_steps": 0,
+    "failure_reason": null
+  },
+  "steps": [
+    {
+      "step": "start_motor",
+      "description": "Start the motor",
+      "status": "PASS",
+      "started_at": "2026-01-20T18:35:45.306829",
+      "ended_at": "2026-01-20T18:35:45.306829",
+      "input_params": {
+        "step": "start_motor",
+        "description": "Start the motor"
+      },
+      "observed": {},
+      "failure_details": null
+    },
+    {
+      "step": "set_speed",
+      "description": "Ramp motor to 2000 RPM",
+      "status": "PASS",
+      "started_at": "2026-01-20T18:35:45.306829",
+      "ended_at": "2026-01-20T18:35:45.306829",
+      "input_params": {
+        "step": "set_speed",
+        "rpm": 2000,
+        "description": "Ramp motor to 2000 RPM"
+      },
+      "observed": {},
+      "failure_details": null
+    },
+    {
+      "step": "wait",
+      "description": "Allow motor to stabilize",
+      "status": "PASS",
+      "started_at": "2026-01-20T18:35:45.306829",
+      "ended_at": "2026-01-20T18:36:15.307568",
+      "input_params": {
+        "step": "wait",
+        "duration_s": 30,
+        "description": "Allow motor to stabilize"
+      },
+      "observed": {},
+      "failure_details": null
+    },
+    {
+      "step": "apply_load",
+      "description": "Apply mechanical load",
+      "status": "PASS",
+      "started_at": "2026-01-20T18:36:15.308085",
+      "ended_at": "2026-01-20T18:36:15.308085",
+      "input_params": {
+        "step": "apply_load",
+        "load_nm": 5.0,
+        "description": "Apply mechanical load"
+      },
+      "observed": {},
+      "failure_details": null
+    },
+    {
+      "step": "monitor",
+      "description": "Check speed stability and temperature",
+      "status": "PASS",
+      "started_at": "2026-01-20T18:36:15.309105",
+      "ended_at": "2026-01-20T18:36:25.368538",
+      "input_params": {
+        "step": "monitor",
+        "duration_s": 10,
+        "criteria": {
+          "speed_rpm": {
+            "min": 1850,
+            "max": 2150
+          },
+          "temperature_c": {
+            "max": 90
+          }
+        },
+        "description": "Check speed stability and temperature"
+      },
+      "observed": {
+        "speed_rpm": {
+          "min": 1900.49,
+          "max": 1960.06
+        },
+        "temperature_c": {
+          "max": 62.91
+        }
+      },
+      "failure_details": null
+    },
+    {
+      "step": "remove_load",
+      "description": "Remove load",
+      "status": "PASS",
+      "started_at": "2026-01-20T18:36:25.369110",
+      "ended_at": "2026-01-20T18:36:25.369110",
+      "input_params": {
+        "step": "remove_load",
+        "description": "Remove load"
+      },
+      "observed": {},
+      "failure_details": null
+    },
+    {
+      "step": "stop_motor",
+      "description": "Soft stop motor",
+      "status": "PASS",
+      "started_at": "2026-01-20T18:36:25.369860",
+      "ended_at": "2026-01-20T18:36:25.369860",
+      "input_params": {
+        "step": "stop_motor",
+        "description": "Soft stop motor"
+      },
+      "observed": {},
+      "failure_details": null
+    },
+    {
+      "step": "end_test",
+      "description": "End of test",
+      "status": "PASS",
+      "started_at": "2026-01-20T18:36:25.369860",
+      "ended_at": "2026-01-20T18:36:25.370884",
+      "input_params": {
+        "step": "end_test",
+        "description": "End of test"
+      },
+      "observed": {},
+      "failure_details": null
+    }
+  ],
+  "metrics": {
+    "max_temperature_c": 62.91,
+    "avg_speed_rpm": 1935.0852000000004,
+    "test_duration_s": 40.066125
+  },
+  "artifacts": {}
+}
