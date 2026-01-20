@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from controller import MotorController
+from TestController.controller import MotorController
 
 # Global instance
 controller = MotorController()
@@ -37,3 +37,8 @@ def stop_motor():
 def set_speed(rpm: float):
     controller.set_speed(rpm)
     return {"target_speed": rpm}
+
+@app.post("/load/{nm}")
+def set_load(nm: float):
+    controller.set_load(nm)
+    return {"target_load_nm": nm}

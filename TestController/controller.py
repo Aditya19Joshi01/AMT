@@ -26,9 +26,9 @@ class MotorController:
         # 1. Setup the Motor Physics
         self.profile = MotorProfile(
             rated_speed_rpm=3000,
-            max_temp_c=120,
+            max_temp_c=150,  # Increased to prevent overheat
             inertia=10.0,
-            thermal_resistance=30.0
+            thermal_resistance=10.0  # Decreased to improve cooling
         )
         self.motor = MotorSimulator(self.profile, update_dt=0.1)
         
@@ -36,6 +36,10 @@ class MotorController:
         self.running = False
         self.thread = None
         self.stop_event = threading.Event()
+        self.lock = threading.Lock()
+        
+        # Soft Stop Control
+        self.stopping = False
 
     def start_background_loop(self):
         """Starts the background thread that simulates physics."""
@@ -59,8 +63,17 @@ class MotorController:
     def _loop(self):
         """The actual loop running at 10Hz (0.1s)."""
         while not self.stop_event.is_set():
-            # Tick the physics engine
-            self.motor.update()
+            # Lock the physics engine while updating
+            with self.lock:
+                # Soft Stop Logic
+                if self.stopping:
+                    self.motor.set_target_speed(0)
+                    if abs(self.motor.state.speed_rpm) < 1.0:
+                        self.motor.stop()
+                        self.stopping = False
+                        print("[Controller] Soft stop complete. Motor OFF.")
+
+                self.motor.update()
             
             # TODO: Here we will later add 'Test Sequence' logic
             
@@ -70,13 +83,24 @@ class MotorController:
     # --- Public API ---
 
     def start_motor(self):
-        self.motor.start()
+        with self.lock:
+            self.stopping = False
+            self.motor.start()
 
     def stop_motor(self):
-        self.motor.stop()
+        with self.lock:
+            self.stopping = True
+            self.motor.set_target_speed(0)
 
     def set_speed(self, rpm: float):
-        self.motor.set_target_speed(rpm)
+        with self.lock:
+            if not self.stopping:
+                self.motor.set_target_speed(rpm)
+
+    def set_load(self, nm: float):
+        with self.lock:
+            self.motor.set_load(nm)
 
     def get_status(self):
-        return self.motor.snapshot()
+        with self.lock:
+            return self.motor.snapshot()
