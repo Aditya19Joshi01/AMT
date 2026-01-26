@@ -1,7 +1,7 @@
 import os
 from typing import List
 from fastapi import APIRouter, HTTPException, Response
-from ReportGeneration.generator import REPORT_DIR
+from app.services.reporting.generator import REPORT_DIR
 
 router = APIRouter(
     prefix="/reports",

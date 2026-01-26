@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
-from ..dependencies import get_controller
-from TestController.controller import MotorController
+from app.api.deps import get_controller
+from app.services.controller.controller import MotorController
 
 router = APIRouter(
     prefix="/motor",

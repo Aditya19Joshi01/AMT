@@ -11,18 +11,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
-COPY backend ./backend
-COPY MotorSimulator ./MotorSimulator
-COPY TestController ./TestController
-COPY TestEngine ./TestEngine
-COPY ReportGeneration ./ReportGeneration
-COPY TestConfigs ./TestConfigs
-# Create TestReports directory if it doesn't exist
-RUN mkdir -p TestReports
+# Since build context is ./backend, this copies app, configs, etc.
+COPY . .
+
+# Create reports directory if it doesn't exist
+RUN mkdir -p reports
 
 # Make port 8000 available to the world outside this container
 EXPOSE 8000
 
 # Run app.py when the container launches
-# Assuming main.py is inside backend folder and app object is named app
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

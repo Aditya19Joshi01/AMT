@@ -2,9 +2,9 @@ import os
 import threading
 from typing import List
 from fastapi import APIRouter, Depends
-from ..dependencies import get_controller, get_test_state, TEST_DIR, TestState
-from TestController.controller import MotorController
-from TestEngine.test_engine import TestRunner
+from app.api.deps import get_controller, get_test_state, TEST_DIR, TestState
+from app.services.controller.controller import MotorController
+from app.services.engine.test_engine import TestRunner
 
 router = APIRouter(
     prefix="/tests",

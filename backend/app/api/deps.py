@@ -1,5 +1,5 @@
 import os
-from TestController.controller import MotorController
+from app.services.controller.controller import MotorController
 
 # 1. Motor Controller Singleton
 # This must be shared across all request
@@ -17,7 +17,7 @@ test_state = TestState()
 # Assuming run from root: /AMT/TestConfigs
 # Adjust path if needed.
 # Since we run `python -m backend.main` from root, root is CWD.
-TEST_DIR = os.path.join(os.getcwd(), "TestConfigs")
+TEST_DIR = os.path.join(os.getcwd(), "configs")
 if not os.path.exists(TEST_DIR):
     os.makedirs(TEST_DIR)
 

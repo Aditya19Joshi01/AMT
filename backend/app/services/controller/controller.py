@@ -4,18 +4,7 @@ import sys
 import os
 
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, ".."))
-simulator_path = os.path.join(project_root, "MotorSimulator")
-
-if simulator_path not in sys.path:
-    sys.path.append(simulator_path)
-
-try:
-    from motor_simulator import MotorSimulator, MotorProfile
-except ImportError as e:
-    print(f"CRITICAL: Could not import MotorSimulator. Checked path: {simulator_path}")
-    raise e
+from app.services.motor.motor_simulator import MotorSimulator, MotorProfile
 
 class MotorController:
     """

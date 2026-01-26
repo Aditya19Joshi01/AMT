@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from .models import TestReport, TestInfo, ExecutionInfo, AppSummary, AppMetrics, StepResult
 
-REPORT_DIR = os.path.join(os.getcwd(), "TestReports")
+REPORT_DIR = os.path.join(os.getcwd(), "reports")
 if not os.path.exists(REPORT_DIR):
     os.makedirs(REPORT_DIR)
 

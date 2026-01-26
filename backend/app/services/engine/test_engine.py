@@ -6,14 +6,9 @@ from datetime import datetime
 from typing import Dict, Any, List
 
 # Ensure we can import modules
-current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(current_dir, ".."))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
-from TestController.controller import MotorController
-from ReportGeneration.generator import ReportBuilder
-from ReportGeneration.models import StepResult
+from app.services.controller.controller import MotorController
+from app.services.reporting.generator import ReportBuilder
+from app.services.reporting.models import StepResult
 
 class TestRunner:
     def __init__(self, controller: MotorController):
