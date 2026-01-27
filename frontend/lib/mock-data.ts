@@ -7,7 +7,6 @@ export interface TelemetryData {
   rpm: number
   temperature: number
   torque: number
-  current: number
   voltage: number
 }
 
@@ -94,18 +93,17 @@ export interface TestReportStep {
 export function generateTelemetryData(count: number): TelemetryData[] {
   const data: TelemetryData[] = []
   const now = Date.now()
-  
+
   for (let i = 0; i < count; i++) {
     data.push({
       timestamp: now - (count - i) * 1000,
       rpm: 1500 + Math.sin(i * 0.1) * 200 + Math.random() * 50,
       temperature: 45 + Math.sin(i * 0.05) * 10 + Math.random() * 5,
       torque: 25 + Math.sin(i * 0.08) * 8 + Math.random() * 3,
-      current: 12 + Math.sin(i * 0.07) * 3 + Math.random() * 1,
       voltage: 380 + Math.random() * 5,
     })
   }
-  
+
   return data
 }
 
@@ -297,11 +295,13 @@ export const stepTypes = [
   { type: "set_speed", label: "Set Speed", icon: "Gauge", color: "text-chart-1", params: [{ name: "target_rpm", type: "number", label: "Target RPM", default: 1500 }] },
   { type: "apply_load", label: "Apply Load", icon: "Weight", color: "text-warning", params: [{ name: "torque_nm", type: "number", label: "Torque (Nm)", default: 25 }] },
   { type: "wait", label: "Wait", icon: "Clock", color: "text-muted-foreground", params: [{ name: "duration_seconds", type: "number", label: "Duration (s)", default: 5 }] },
-  { type: "monitor", label: "Monitor", icon: "Activity", color: "text-chart-2", params: [
-    { name: "duration_seconds", type: "number", label: "Duration (s)", default: 10 },
-    { name: "check_temperature", type: "boolean", label: "Check Temperature", default: true },
-    { name: "max_temp", type: "number", label: "Max Temp (°C)", default: 80 },
-  ]},
+  {
+    type: "monitor", label: "Monitor", icon: "Activity", color: "text-chart-2", params: [
+      { name: "duration_seconds", type: "number", label: "Duration (s)", default: 10 },
+      { name: "check_temperature", type: "boolean", label: "Check Temperature", default: true },
+      { name: "max_temp", type: "number", label: "Max Temp (°C)", default: 80 },
+    ]
+  },
   { type: "remove_load", label: "Remove Load", icon: "Minus", color: "text-muted-foreground", params: [] },
   { type: "stop_motor", label: "Stop Motor", icon: "Square", color: "text-destructive", params: [] },
 ] as const

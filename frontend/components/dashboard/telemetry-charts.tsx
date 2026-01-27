@@ -41,7 +41,7 @@ export function TelemetryCharts({ data }: TelemetryChartsProps) {
           </div>
         </CardHeader>
         <CardContent className="pb-4">
-          <div className="h-[120px]">
+          <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={formattedData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -72,7 +72,7 @@ export function TelemetryCharts({ data }: TelemetryChartsProps) {
                 <Line
                   type="monotone"
                   dataKey="rpm"
-                  stroke="hsl(var(--chart-1))"
+                  stroke="var(--chart-1)"
                   strokeWidth={2}
                   dot={false}
                 />
@@ -93,7 +93,7 @@ export function TelemetryCharts({ data }: TelemetryChartsProps) {
           </div>
         </CardHeader>
         <CardContent className="pb-4">
-          <div className="h-[120px]">
+          <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={formattedData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -124,7 +124,7 @@ export function TelemetryCharts({ data }: TelemetryChartsProps) {
                 <Line
                   type="monotone"
                   dataKey="temperature"
-                  stroke="hsl(var(--chart-3))"
+                  stroke="var(--chart-3)"
                   strokeWidth={2}
                   dot={false}
                 />
@@ -145,7 +145,7 @@ export function TelemetryCharts({ data }: TelemetryChartsProps) {
           </div>
         </CardHeader>
         <CardContent className="pb-4">
-          <div className="h-[120px]">
+          <div className="h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={formattedData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -176,7 +176,7 @@ export function TelemetryCharts({ data }: TelemetryChartsProps) {
                 <Line
                   type="monotone"
                   dataKey="torque"
-                  stroke="hsl(var(--chart-2))"
+                  stroke="var(--chart-2)"
                   strokeWidth={2}
                   dot={false}
                 />

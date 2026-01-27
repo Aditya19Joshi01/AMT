@@ -32,7 +32,6 @@ export default function DashboardPage() {
           rpm: 1500 + Math.sin(Date.now() * 0.001) * 200 + Math.random() * 50,
           temperature: 45 + Math.sin(Date.now() * 0.0005) * 10 + Math.random() * 5,
           torque: 25 + Math.sin(Date.now() * 0.0008) * 8 + Math.random() * 3,
-          current: 12 + Math.sin(Date.now() * 0.0007) * 3 + Math.random() * 1,
           voltage: 380 + Math.random() * 5,
         }
         return [...prev.slice(-29), newPoint]
@@ -69,7 +68,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
@@ -115,24 +114,11 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5" />
-              Current
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-mono font-semibold">
-              {latestData?.current.toFixed(1) ?? "—"}
-              <span className="text-sm font-normal text-muted-foreground ml-1">A</span>
-            </p>
-          </CardContent>
-        </Card>
+
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-[320px_1fr] gap-4 lg:gap-6">
+      <div className="grid lg:grid-cols-[380px_1fr] gap-4 lg:gap-6">
         {/* Left: Motor Visualization */}
         <div className="space-y-4">
           <Card>
@@ -151,11 +137,10 @@ export default function DashboardPage() {
                   <button
                     key={s}
                     onClick={() => setMotorStatus(s)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                      motorStatus === s
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${motorStatus === s
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}
                   >
                     {s.toUpperCase()}
                   </button>
