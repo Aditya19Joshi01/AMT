@@ -13,6 +13,9 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { stepTypes, type TestStep } from "@/lib/mock-data"
+import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/contexts/auth-context"
+import { LoadTestDialog } from "@/components/load-test-dialog"
 import {
   Play,
   Square,
@@ -58,16 +61,16 @@ test:
 
 steps:
 ${steps
-  .map((step, index) => {
-    const paramsStr = Object.entries(step.params)
-      .map(([key, value]) => `      ${key}: ${typeof value === "string" ? `"${value}"` : value}`)
-      .join("\n")
-    return `  - step: ${index + 1}
+      .map((step, index) => {
+        const paramsStr = Object.entries(step.params)
+          .map(([key, value]) => `      ${key}: ${typeof value === "string" ? `"${value}"` : value}`)
+          .join("\n")
+        return `  - step: ${index + 1}
     type: ${step.type}
 ${step.description ? `    description: "${step.description}"` : ""}
 ${paramsStr ? `    params:\n${paramsStr}` : ""}`
-  })
-  .join("\n\n")}`
+      })
+      .join("\n\n")}`
 
   return yaml
 }
@@ -78,7 +81,7 @@ function yamlToSteps(yaml: string): { name: string; description: string; steps: 
     const nameMatch = yaml.match(/name:\s*"([^"]+)"/)
     const descMatch = yaml.match(/description:\s*"([^"]+)"/)
     const stepsSection = yaml.split("steps:")[1]
-    
+
     if (!stepsSection) return null
 
     const stepBlocks = stepsSection.split(/\s+-\s+step:/g).filter(Boolean)
@@ -86,7 +89,7 @@ function yamlToSteps(yaml: string): { name: string; description: string; steps: 
       const typeMatch = block.match(/type:\s*(\w+)/)
       const descriptionMatch = block.match(/description:\s*"([^"]+)"/)
       const params: Record<string, number | string | boolean> = {}
-      
+
       // Parse params
       const paramsSection = block.match(/params:\s*\n([\s\S]*?)(?=\n\s*-|$)/)
       if (paramsSection) {
@@ -156,6 +159,49 @@ export default function TestBuilderPage() {
     }
   }
 
+  const { user } = useAuth()
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (!user) {
+      alert("Please sign in to save tests")
+      return
+    }
+
+    setSaving(true)
+    try {
+      const yaml = stepsToYaml(testName, testDescription, steps)
+      const timestamp = new Date().getTime()
+      const fileName = `${testName.replace(/\s+/g, "_")}_${timestamp}.yaml`
+
+      // 1. Upload to Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("test-files")
+        .upload(fileName, yaml)
+
+      if (uploadError) throw uploadError
+
+      // 2. Insert Metadata
+      const { error: dbError } = await supabase
+        .from("test_definitions")
+        .insert({
+          name: testName,
+          description: testDescription,
+          storage_path: fileName,
+          author_id: user.id
+        })
+
+      if (dbError) throw dbError
+
+      alert("Test saved successfully!")
+    } catch (e: any) {
+      console.error(e)
+      alert("Failed to save: " + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const addStep = (type: BuilderStep["type"]) => {
     const stepType = stepTypes.find((s) => s.type === type)
     const defaultParams: Record<string, number | string | boolean> = {}
@@ -182,7 +228,7 @@ export default function TestBuilderPage() {
     const newIndex = direction === "up" ? index - 1 : index + 1
     if (newIndex < 0 || newIndex >= steps.length) return
     const newSteps = [...steps]
-    ;[newSteps[index], newSteps[newIndex]] = [newSteps[newIndex], newSteps[index]]
+      ;[newSteps[index], newSteps[newIndex]] = [newSteps[newIndex], newSteps[index]]
     setSteps(newSteps)
   }
 
@@ -214,10 +260,13 @@ export default function TestBuilderPage() {
             Create and edit motor test definitions
           </p>
         </div>
-        <Button className="gap-2">
-          <Save className="w-4 h-4" />
-          Save Test
-        </Button>
+        <div className="flex gap-2">
+          <LoadTestDialog onLoad={handleYamlChange} />
+          <Button className="gap-2" onClick={handleSave} disabled={saving}>
+            <Save className="w-4 h-4" />
+            {saving ? "Saving..." : "Save Test"}
+          </Button>
+        </div>
       </div>
 
       {/* Test Metadata */}
@@ -459,10 +508,10 @@ export default function TestBuilderPage() {
 
                     {stepTypes.find((s) => s.type === selectedStep.type)?.params
                       .length === 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        This step has no configurable parameters.
-                      </p>
-                    )}
+                        <p className="text-sm text-muted-foreground">
+                          This step has no configurable parameters.
+                        </p>
+                      )}
                   </div>
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">

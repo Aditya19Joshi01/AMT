@@ -5,13 +5,16 @@ from fastapi import APIRouter, Depends
 from app.api.deps import get_controller, get_test_state, TEST_DIR, TestState
 from app.services.controller.controller import MotorController
 from app.services.engine.test_engine import TestRunner
+from pydantic import BaseModel
+from app.core.supabase import get_supabase
+import uuid
 
 router = APIRouter(
     prefix="/tests",
     tags=["Test Engine"]
 )
 
-def _run_test_thread(filename: str, controller: MotorController, state: TestState):
+def _run_test_thread(filename: str, controller: MotorController, state: TestState, db_test_id: str = None):
     """Background worker to run the test."""
     state.running = True
     state.current_test = filename
@@ -22,7 +25,7 @@ def _run_test_thread(filename: str, controller: MotorController, state: TestStat
     
     try:
         print(f"[API] Starting Test: {filename}")
-        runner.run(filepath)
+        runner.run(filepath, db_test_id=db_test_id)
         print(f"[API] Test {filename} Completed Successfully")
     except Exception as e:
         print(f"[API] Test {filename} Failed: {e}")
@@ -71,3 +74,42 @@ def get_active_test(state: TestState = Depends(get_test_state)):
         "test": state.current_test,
         "last_error": state.last_error
     }
+
+class TestExecutionRequest(BaseModel):
+    test_id: str
+    storage_path: str
+
+@router.post("/execute")
+def execute_test(
+    request: TestExecutionRequest,
+    controller: MotorController = Depends(get_controller),
+    state: TestState = Depends(get_test_state)
+):
+    """Trigger a cloud-hosted test execution."""
+    if state.running:
+        return {"status": "error", "message": f"Test '{state.current_test}' is already running"}
+    
+    # Download file from Supabase
+    try:
+        supabase = get_supabase()
+        temp_filename = f"temp_{uuid.uuid4().hex}.yaml"
+        local_path = os.path.join(TEST_DIR, temp_filename)
+        
+        print(f"[API] Downloading test {request.storage_path} to {local_path}")
+        with open(local_path, 'wb') as f:
+            res = supabase.storage.from_("test-files").download(request.storage_path)
+            f.write(res)
+            
+    except Exception as e:
+        print(f"[API] Failed to download test: {e}")
+        return {"status": "error", "message": f"Failed to download test: {str(e)}"}
+
+    # Start background thread
+    t = threading.Thread(
+        target=_run_test_thread, 
+        args=(temp_filename, controller, state, request.test_id), 
+        daemon=True
+    )
+    t.start()
+    
+    return {"status": "started", "test": request.storage_path, "local_temp": temp_filename}

@@ -12,10 +12,12 @@ class ReportBuilder:
     def __init__(self):
         self.report: TestReport = None
         self.start_time = None
+        self.db_test_id = None
 
-    def start_test(self, name: str, description: str, author="Test Engineer"):
+    def start_test(self, name: str, description: str, author="Test Engineer", db_test_id: str = None):
         """Initialize a new test report."""
         self.start_time = datetime.utcnow()
+        self.db_test_id = db_test_id
         
         info = TestInfo(
             name=name,
@@ -71,6 +73,8 @@ class ReportBuilder:
         # Save to Disk
         return self._save_to_disk()
 
+        return self._save_to_disk()
+
     def _save_to_disk(self) -> str:
         # Use simple timestamp: YYYYMMDD_HHMMSS
         timestamp = self.start_time.strftime("%Y%m%d_%H%M%S")
@@ -79,8 +83,40 @@ class ReportBuilder:
         
         filepath = os.path.join(REPORT_DIR, filename)
         
+        json_content = self.report.model_dump_json(indent=2)
         with open(filepath, 'w') as f:
-            f.write(self.report.model_dump_json(indent=2))
+            f.write(json_content)
             
         print(f"[Report] Saved to {filepath}")
+        
+        # Upload to Supabase
+        self._upload_to_supabase(filename, json_content)
+        
         return filename
+
+    def _upload_to_supabase(self, filename: str, content: str):
+        try:
+            from app.core.supabase import get_supabase
+            client = get_supabase()
+            
+            # 1. Upload JSON
+            client.storage.from_("test-reports").upload(filename, content.encode())
+            print(f"[Report] Uploaded {filename} to Supabase Storage")
+            
+            # 2. Insert Run Record
+            if self.db_test_id:
+                run_data = {
+                    "test_id": self.db_test_id,
+                    "status": self.report.summary.overall_result,
+                    "report_path": filename,
+                    "duration_s": self.report.execution_info.duration_s,
+                    "executed_at": self.report.execution_info.ended_at
+                }
+                client.table("test_runs").insert(run_data).execute()
+                print(f"[Report] Inserted run record for test {self.db_test_id}")
+            else:
+                print("[Report] Skipping DB insert (no db_test_id provided)")
+            
+        except Exception as e:
+            print(f"[Report] Failed to upload to Supabase: {e}")
+

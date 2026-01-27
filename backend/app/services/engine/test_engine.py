@@ -25,7 +25,7 @@ class TestRunner:
             data = yaml.safe_load(f)
         return data
 
-    def run(self, yaml_path: str):
+    def run(self, yaml_path: str, db_test_id: str = None):
         """Main entry point to execute a test."""
         print(f"--- Loading Test: {yaml_path} ---")
         config = self.load_sequence(yaml_path)
@@ -36,7 +36,7 @@ class TestRunner:
         author = test_info.get("author", "Unknown")
         
         # Start Report
-        self.builder.start_test(name, desc, author)
+        self.builder.start_test(name, desc, author, db_test_id=db_test_id)
         
         sequence = config.get("sequence", [])
         

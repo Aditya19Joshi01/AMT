@@ -4,13 +4,14 @@ import { Inter, IBM_Plex_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppShell } from "@/components/app-shell"
+import { AuthProvider } from "@/contexts/auth-context"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
-const ibmPlexMono = IBM_Plex_Mono({ 
+const ibmPlexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
-  subsets: ["latin"], 
-  variable: "--font-mono" 
+  subsets: ["latin"],
+  variable: "--font-mono"
 })
 
 export const metadata: Metadata = {
@@ -50,7 +51,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AppShell>{children}</AppShell>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
         </ThemeProvider>
         <Analytics />
       </body>

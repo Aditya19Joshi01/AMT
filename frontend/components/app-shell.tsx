@@ -16,7 +16,10 @@ import {
   Moon,
   Zap,
   AlertOctagon,
+  User,
+  LogOut
 } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -24,6 +27,33 @@ const navigation = [
   { name: "Test Builder", href: "/test-builder", icon: Wrench },
   { name: "Reports", href: "/reports", icon: FileText },
 ]
+
+
+
+function UserNav() {
+  const { user, signOut } = useAuth()
+
+  if (!user) {
+    return (
+      <Link href="/login">
+        <Button variant="ghost" size="sm">
+          Sign In
+        </Button>
+      </Link>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="text-sm text-foreground/80 hidden md:block">
+        {user.email}
+      </div>
+      <Button variant="ghost" size="icon" onClick={signOut} title="Sign Out">
+        <LogOut className="w-4 h-4" />
+      </Button>
+    </div>
+  )
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -63,8 +93,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
         <div className="flex items-center gap-2">
-
-
+          <UserNav />
           {/* Theme Toggle */}
           <Button
             variant="ghost"

@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
-import { mockTests, type TestDefinition, type TestExecution } from "@/lib/mock-data"
+// import { mockTests } from "@/lib/mock-data"
+import { supabase } from "@/lib/supabase"
+import { useAuth } from "@/contexts/auth-context"
 import {
   Play,
   Square,
@@ -18,69 +19,76 @@ import {
   Loader2,
 } from "lucide-react"
 
+interface TestDefinition {
+  id: string
+  name: string
+  description: string
+  storage_path: string
+  created_at: string
+}
+
+interface ActiveTestState {
+  running: boolean
+  test: string | null
+  last_error: string | null
+}
+
+const API_URL = "http://localhost:8000/api/v1"
+
 export default function TestRunnerPage() {
+  const { user } = useAuth()
+  const [tests, setTests] = useState<TestDefinition[]>([])
   const [selectedTest, setSelectedTest] = useState<TestDefinition | null>(null)
-  const [execution, setExecution] = useState<TestExecution | null>(null)
-  const [isRunning, setIsRunning] = useState(false)
+  const [execution, setExecution] = useState<ActiveTestState | null>(null)
 
-  // Simulate test execution
-  const runTest = (test: TestDefinition) => {
-    setIsRunning(true)
-    setExecution({
-      id: `exec-${Date.now()}`,
-      testId: test.id,
-      testName: test.name,
-      status: "running",
-      startTime: new Date(),
-      currentStep: 0,
-      totalSteps: test.steps.length,
-      progress: 0,
-    })
+  // Fetch tests
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from("test_definitions")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .then(({ data }) => {
+          if (data) setTests(data)
+        })
+    }
+  }, [user])
 
-    // Simulate step-by-step execution
-    let step = 0
-    const interval = setInterval(() => {
-      step++
-      if (step <= test.steps.length) {
-        setExecution((prev) =>
-          prev
-            ? {
-                ...prev,
-                currentStep: step,
-                progress: (step / test.steps.length) * 100,
-              }
-            : null
-        )
-      } else {
-        // Test complete
-        const passed = Math.random() > 0.3 // 70% pass rate for demo
-        setExecution((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: passed ? "passed" : "failed",
-                endTime: new Date(),
-                progress: 100,
-              }
-            : null
-        )
-        setIsRunning(false)
-        clearInterval(interval)
+  // Poll status
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API_URL}/tests/active`)
+        const data: ActiveTestState = await res.json()
+        setExecution(data)
+      } catch (e) {
+        console.error("Polling error", e)
       }
-    }, 1500)
+    }
+
+    const interval = setInterval(poll, 1000)
+    poll() // Initial call
+    return () => clearInterval(interval)
+  }, [])
+
+  const runTest = async (test: TestDefinition) => {
+    if (!test) return
+    try {
+      await fetch(`${API_URL}/tests/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          test_id: test.id,
+          storage_path: test.storage_path
+        })
+      })
+    } catch (e) {
+      alert("Failed to trigger test")
+    }
   }
 
   const stopTest = () => {
-    setIsRunning(false)
-    setExecution((prev) =>
-      prev
-        ? {
-            ...prev,
-            status: "failed",
-            endTime: new Date(),
-          }
-        : null
-    )
+    alert("Stop functionality not implemented in backend API yet")
   }
 
   return (
@@ -103,17 +111,17 @@ export default function TestRunnerPage() {
           <CardContent>
             <ScrollArea className="h-[400px]">
               <div className="space-y-2">
-                {mockTests.map((test) => (
+                {tests.map((test) => (
                   <button
                     key={test.id}
                     onClick={() => setSelectedTest(test)}
-                    disabled={isRunning}
+                    disabled={execution?.running}
                     className={cn(
                       "w-full text-left p-4 rounded-lg border transition-colors",
                       selectedTest?.id === test.id
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-primary/50 hover:bg-muted/50",
-                      isRunning && "opacity-50 cursor-not-allowed"
+                      execution?.running && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     <div className="flex items-center justify-between">
@@ -123,14 +131,18 @@ export default function TestRunnerPage() {
                           {test.description}
                         </p>
                         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                          <span>{test.steps.length} steps</span>
-                          <span>Updated {formatRelativeTime(test.updatedAt)}</span>
+                          <span>Created {new Date(test.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
                       <ChevronRight className="w-5 h-5 text-muted-foreground" />
                     </div>
                   </button>
                 ))}
+                {tests.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No tests found. Save a test in the Builder first.
+                  </div>
+                )}
               </div>
             </ScrollArea>
           </CardContent>
@@ -149,7 +161,7 @@ export default function TestRunnerPage() {
                       {selectedTest.description}
                     </CardDescription>
                   </div>
-                  {!isRunning ? (
+                  {!execution?.running ? (
                     <Button onClick={() => runTest(selectedTest)} className="gap-2">
                       <Play className="w-4 h-4" />
                       Run Test
@@ -159,6 +171,7 @@ export default function TestRunnerPage() {
                       variant="destructive"
                       onClick={stopTest}
                       className="gap-2"
+                      disabled={true} // Disabled until stop implemented
                     >
                       <Square className="w-4 h-4" />
                       Stop
@@ -168,72 +181,9 @@ export default function TestRunnerPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div>
-                    <h4 className="text-sm font-medium text-foreground mb-2">
-                      Test Steps
-                    </h4>
-                    <div className="space-y-2">
-                      {selectedTest.steps.map((step, index) => {
-                        const isComplete =
-                          execution &&
-                          execution.testId === selectedTest.id &&
-                          execution.currentStep !== undefined &&
-                          index < execution.currentStep
-                        const isCurrent =
-                          execution &&
-                          execution.testId === selectedTest.id &&
-                          execution.currentStep === index + 1 &&
-                          execution.status === "running"
-                        const isFailed =
-                          execution &&
-                          execution.status === "failed" &&
-                          execution.currentStep === index + 1
-
-                        return (
-                          <div
-                            key={step.id}
-                            className={cn(
-                              "flex items-center gap-3 p-2 rounded-md text-sm",
-                              isCurrent && "bg-primary/10",
-                              isComplete && "bg-success/10",
-                              isFailed && "bg-destructive/10"
-                            )}
-                          >
-                            <div
-                              className={cn(
-                                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium",
-                                isComplete
-                                  ? "bg-success text-success-foreground"
-                                  : isCurrent
-                                    ? "bg-primary text-primary-foreground"
-                                    : isFailed
-                                      ? "bg-destructive text-destructive-foreground"
-                                      : "bg-muted text-muted-foreground"
-                              )}
-                            >
-                              {isComplete ? (
-                                <CheckCircle2 className="w-4 h-4" />
-                              ) : isCurrent ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : isFailed ? (
-                                <XCircle className="w-4 h-4" />
-                              ) : (
-                                index + 1
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <span className="font-mono text-xs text-muted-foreground">
-                                {step.type}
-                              </span>
-                              {step.description && (
-                                <p className="text-foreground">{step.description}</p>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Click Run to execute this test on the connected motor setup.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -247,92 +197,26 @@ export default function TestRunnerPage() {
           )}
 
           {/* Execution Status */}
-          {execution && (
+          {execution && (execution.running || execution.last_error) && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center justify-between">
-                  Execution Status
-                  <Badge
-                    variant={
-                      execution.status === "passed"
-                        ? "default"
-                        : execution.status === "failed"
-                          ? "destructive"
-                          : "secondary"
-                    }
-                    className={cn(
-                      execution.status === "passed" && "bg-success text-success-foreground"
-                    )}
-                  >
-                    {execution.status === "running" && (
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                    )}
-                    {execution.status === "passed" && (
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                    )}
-                    {execution.status === "failed" && (
-                      <XCircle className="w-3 h-3 mr-1" />
-                    )}
-                    {execution.status.toUpperCase()}
+                  Status
+                  <Badge variant={execution.running ? "default" : "secondary"}>
+                    {execution.running ? "RUNNING" : "STOPPED"}
                   </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="font-mono">
-                      {execution.currentStep ?? 0} / {execution.totalSteps} steps
-                    </span>
+              <CardContent>
+                {execution.running && (
+                  <div className="flex items-center gap-2 text-primary">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="font-mono text-sm">Executing {execution.test}...</span>
                   </div>
-                  <Progress value={execution.progress} className="h-2" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Started</p>
-                    <p className="font-mono">
-                      {execution.startTime?.toLocaleTimeString() ?? "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Duration</p>
-                    <p className="font-mono flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {execution.endTime
-                        ? `${Math.round((execution.endTime.getTime() - (execution.startTime?.getTime() ?? 0)) / 1000)}s`
-                        : "Running..."}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Result Display */}
-                {execution.status !== "running" && (
-                  <div
-                    className={cn(
-                      "p-4 rounded-lg text-center",
-                      execution.status === "passed"
-                        ? "bg-success/10 text-success"
-                        : "bg-destructive/10 text-destructive"
-                    )}
-                  >
-                    {execution.status === "passed" ? (
-                      <>
-                        <CheckCircle2 className="w-8 h-8 mx-auto mb-2" />
-                        <p className="font-semibold text-lg">TEST PASSED</p>
-                        <p className="text-sm opacity-80">
-                          All steps completed successfully
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="w-8 h-8 mx-auto mb-2" />
-                        <p className="font-semibold text-lg">TEST FAILED</p>
-                        <p className="text-sm opacity-80">
-                          Test execution encountered an error
-                        </p>
-                      </>
-                    )}
+                )}
+                {execution.last_error && (
+                  <div className="mt-2 text-destructive text-sm bg-destructive/10 p-2 rounded">
+                    Error: {execution.last_error}
                   </div>
                 )}
               </CardContent>
@@ -342,16 +226,4 @@ export default function TestRunnerPage() {
       </div>
     </div>
   )
-}
-
-function formatRelativeTime(date: Date): string {
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-  if (diffHours < 1) return "just now"
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays === 1) return "yesterday"
-  return `${diffDays}d ago`
 }
