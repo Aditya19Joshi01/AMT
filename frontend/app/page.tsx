@@ -6,7 +6,6 @@ import { MotorSchematic } from "@/components/dashboard/motor-schematic"
 import { TelemetryCharts } from "@/components/dashboard/telemetry-charts"
 import { EventLogPanel } from "@/components/dashboard/event-log"
 import {
-  generateTelemetryData,
   mockEventLogs,
   type MotorStatus,
   type TelemetryData,
@@ -18,26 +17,48 @@ export default function DashboardPage() {
   const [motorStatus, setMotorStatus] = useState<MotorStatus>("running")
   const [isLoading, setIsLoading] = useState(true)
 
-  // Simulate real-time data updates
+  // Poll backend for real-time data
   useEffect(() => {
-    // Initial data
-    setTelemetryData(generateTelemetryData(30))
-    setIsLoading(false)
+    const fetchData = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/motor/status")
+        if (!res.ok) throw new Error("Failed to fetch")
+        const data = await res.json()
 
-    // Update data every second
-    const interval = setInterval(() => {
-      setTelemetryData((prev) => {
         const newPoint: TelemetryData = {
           timestamp: Date.now(),
-          rpm: 1500 + Math.sin(Date.now() * 0.001) * 200 + Math.random() * 50,
-          temperature: 45 + Math.sin(Date.now() * 0.0005) * 10 + Math.random() * 5,
-          torque: 25 + Math.sin(Date.now() * 0.0008) * 8 + Math.random() * 3,
-          voltage: 380 + Math.random() * 5,
+          rpm: data.speed_rpm,
+          temperature: data.temperature_c,
+          torque: data.torque_nm,
+          voltage: 380, // Static for now as backend doesn't simulate it
         }
-        return [...prev.slice(-29), newPoint]
-      })
-    }, 1000)
 
+        setTelemetryData((prev) => {
+          const current = [...prev, newPoint]
+          if (current.length > 30) {
+            return current.slice(current.length - 30)
+          }
+          return current
+        })
+
+        // Update Status
+        if (data.fault) setMotorStatus("fault")
+        else if (data.running) setMotorStatus("running")
+        else setMotorStatus("idle")
+
+        setIsLoading(false)
+      } catch (err) {
+        console.error("Polling error:", err)
+        // Keep loading false so UI doesn't freeze stuck on loading
+        setIsLoading(false)
+      }
+    }
+
+    // Initial fetch
+    fetchData()
+
+    // Poll every 500ms
+    const interval = setInterval(fetchData, 500)
     return () => clearInterval(interval)
   }, [])
 
