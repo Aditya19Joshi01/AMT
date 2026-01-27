@@ -8,7 +8,6 @@ import { MotorSchematic } from "@/components/dashboard/motor-schematic"
 import { TelemetryCharts } from "@/components/dashboard/telemetry-charts"
 import { EventLogPanel } from "@/components/dashboard/event-log"
 import {
-  mockEventLogs,
   type MotorStatus,
   type TelemetryData,
 } from "@/lib/mock-data"
@@ -61,6 +60,30 @@ export default function DashboardPage() {
 
     // Poll every 500ms
     const interval = setInterval(fetchData, 500)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Poll for events (slower interval)
+  const [events, setEvents] = useState<any[]>([])
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/events?limit=20")
+        if (res.ok) {
+          const data = await res.json()
+          // Convert timestamp to Date object
+          const parsed = data.map((e: any) => ({
+            ...e,
+            timestamp: new Date(e.timestamp)
+          }))
+          setEvents(parsed)
+        }
+      } catch (e) {
+        console.error("Event poll failed", e)
+      }
+    }
+    fetchEvents() // Initial
+    const interval = setInterval(fetchEvents, 2000)
     return () => clearInterval(interval)
   }, [])
 
@@ -178,7 +201,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Event Log */}
-          <EventLogPanel events={mockEventLogs} />
+          <EventLogPanel events={events} />
         </div>
 
         {/* Right: Telemetry Charts */}

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from app.api.deps import controller
-from app.api.v1.endpoints import motor, tests, reports
+from app.api.v1.endpoints import motor, tests, reports, events
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +33,7 @@ app.add_middleware(
 app.include_router(motor.router)
 app.include_router(tests.router)
 app.include_router(reports.router)
+app.include_router(events.router)
 
 @app.get("/")
 def home():

@@ -6,6 +6,8 @@ import os
 
 from app.services.motor.motor_simulator import MotorSimulator, MotorProfile
 
+from app.services.logger import logger
+
 class MotorController:
     """
     A simple controller that manages the MotorSimulator in a background thread.
@@ -75,20 +77,24 @@ class MotorController:
         with self.lock:
             self.stopping = False
             self.motor.start()
+            logger.success("Motor started")
 
     def stop_motor(self):
         with self.lock:
             self.stopping = True
             self.motor.set_target_speed(0)
+            logger.warning("Motor stopping (Soft Stop initiated)")
 
     def set_speed(self, rpm: float):
         with self.lock:
             if not self.stopping:
                 self.motor.set_target_speed(rpm)
+                logger.info(f"Target speed set to {rpm} RPM")
 
     def set_load(self, nm: float):
         with self.lock:
             self.motor.set_load(nm)
+            logger.info(f"Load set to {nm} Nm")
 
     def get_status(self):
         with self.lock:
