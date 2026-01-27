@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { MotorSchematic } from "@/components/dashboard/motor-schematic"
 import { TelemetryCharts } from "@/components/dashboard/telemetry-charts"
 import { EventLogPanel } from "@/components/dashboard/event-log"
@@ -152,20 +154,25 @@ export default function DashboardPage() {
                 rpm={latestData?.rpm ?? 0}
                 temperature={latestData?.temperature ?? 0}
               />
-              {/* Status Toggle for Demo */}
+              {/* Emergency Stop Control */}
               <div className="mt-4 flex gap-2 justify-center">
-                {(["idle", "running", "fault"] as MotorStatus[]).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setMotorStatus(s)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${motorStatus === s
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                      }`}
-                  >
-                    {s.toUpperCase()}
-                  </button>
-                ))}
+                <Button
+                  variant={motorStatus === "idle" ? "secondary" : "destructive"}
+                  disabled={motorStatus === "idle"}
+                  className={cn(
+                    "w-full font-bold transition-all",
+                    motorStatus === "idle" ? "opacity-50 cursor-not-allowed bg-muted text-muted-foreground" : "hover:bg-destructive/90"
+                  )}
+                  onClick={async () => {
+                    try {
+                      await fetch("http://localhost:8000/motor/stop", { method: "POST" })
+                    } catch (e) {
+                      console.error("Stop failed", e)
+                    }
+                  }}
+                >
+                  EMERGENCY STOP
+                </Button>
               </div>
             </CardContent>
           </Card>

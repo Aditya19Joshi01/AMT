@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {navigation.map((item) => {
-              const isActive = pathname === item.href || 
+              const isActive = pathname === item.href ||
                 (item.href !== "/" && pathname.startsWith(item.href))
               return (
                 <Link
@@ -63,16 +63,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          {/* Emergency Stop Button - Always Visible */}
-          <Button
-            variant="destructive"
-            size="sm"
-            className="gap-2 font-semibold"
-          >
-            <AlertOctagon className="w-4 h-4" />
-            <span className="hidden sm:inline">E-STOP</span>
-          </Button>
-          
+
+
           {/* Theme Toggle */}
           <Button
             variant="ghost"
@@ -93,7 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Mobile Navigation */}
       <nav className="md:hidden border-b border-border bg-card px-2 py-2 flex items-center gap-1 overflow-x-auto">
         {navigation.map((item) => {
-          const isActive = pathname === item.href || 
+          const isActive = pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(item.href))
           return (
             <Link
