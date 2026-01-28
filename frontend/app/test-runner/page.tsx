@@ -33,7 +33,7 @@ interface ActiveTestState {
   last_error: string | null
 }
 
-const API_URL = "http://localhost:8000/api/v1"
+const API_URL = "http://localhost:8000"
 
 export default function TestRunnerPage() {
   const { user } = useAuth()

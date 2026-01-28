@@ -53,22 +53,29 @@ function generateId() {
 }
 
 function stepsToYaml(testName: string, description: string, steps: BuilderStep[]): string {
-  const yaml = `# Motor Test Definition
-test:
+  const yaml = `test_info:
   name: "${testName}"
   description: "${description}"
-  version: "1.0.0"
+  author: "Test Engineer"
+  version: "1.0"
 
-steps:
+global_settings:
+  sample_rate_hz: 10
+  max_test_time_s: 120
+
+sequence:
 ${steps
-      .map((step, index) => {
-        const paramsStr = Object.entries(step.params)
-          .map(([key, value]) => `      ${key}: ${typeof value === "string" ? `"${value}"` : value}`)
-          .join("\n")
-        return `  - step: ${index + 1}
-    type: ${step.type}
-${step.description ? `    description: "${step.description}"` : ""}
-${paramsStr ? `    params:\n${paramsStr}` : ""}`
+      .map((step) => {
+        // Build step with direct parameters (no nested params object)
+        let stepYaml = `  - step: ${step.type}`
+        if (step.description) {
+          stepYaml += `\n    description: "${step.description}"`
+        }
+        // Add parameters directly at step level
+        Object.entries(step.params).forEach(([key, value]) => {
+          stepYaml += `\n    ${key}: ${typeof value === "string" ? `"${value}"` : value}`
+        })
+        return stepYaml
       })
       .join("\n\n")}`
 
@@ -77,39 +84,49 @@ ${paramsStr ? `    params:\n${paramsStr}` : ""}`
 
 function yamlToSteps(yaml: string): { name: string; description: string; steps: BuilderStep[] } | null {
   try {
-    // Simple YAML parsing for demo purposes
+    // Parse test_info section
     const nameMatch = yaml.match(/name:\s*"([^"]+)"/)
     const descMatch = yaml.match(/description:\s*"([^"]+)"/)
-    const stepsSection = yaml.split("steps:")[1]
 
-    if (!stepsSection) return null
+    // Parse sequence section (backend format)
+    const sequenceSection = yaml.split(/sequence:\s*\n/)[1]
 
-    const stepBlocks = stepsSection.split(/\s+-\s+step:/g).filter(Boolean)
+    if (!sequenceSection) return null
+
+    // Split by step markers
+    const stepBlocks = sequenceSection.split(/\n\s*-\s+step:\s+/).filter(Boolean)
     const steps: BuilderStep[] = stepBlocks.map((block) => {
-      const typeMatch = block.match(/type:\s*(\w+)/)
-      const descriptionMatch = block.match(/description:\s*"([^"]+)"/)
-      const params: Record<string, number | string | boolean> = {}
+      const lines = block.trim().split('\n')
+      const stepType = lines[0].trim()
 
-      // Parse params
-      const paramsSection = block.match(/params:\s*\n([\s\S]*?)(?=\n\s*-|$)/)
-      if (paramsSection) {
-        const paramLines = paramsSection[1].match(/\s+(\w+):\s*(.+)/g)
-        paramLines?.forEach((line) => {
-          const match = line.match(/(\w+):\s*(.+)/)
-          if (match) {
-            const [, key, value] = match
-            if (value === "true") params[key] = true
-            else if (value === "false") params[key] = false
-            else if (!isNaN(Number(value))) params[key] = Number(value)
-            else params[key] = value.replace(/"/g, "")
+      const params: Record<string, number | string | boolean> = {}
+      let description = ''
+
+      // Parse each line for parameters or description
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim()
+        if (!line || line.startsWith('-')) break
+
+        const match = line.match(/(\w+):\s*(.+)/)
+        if (match) {
+          const [, key, value] = match
+          if (key === 'description') {
+            description = value.replace(/"/g, '')
+          } else {
+            // Parse parameter value
+            const cleanValue = value.trim()
+            if (cleanValue === 'true') params[key] = true
+            else if (cleanValue === 'false') params[key] = false
+            else if (!isNaN(Number(cleanValue))) params[key] = Number(cleanValue)
+            else params[key] = cleanValue.replace(/"/g, '')
           }
-        })
+        }
       }
 
       return {
         id: generateId(),
-        type: (typeMatch?.[1] || "wait") as BuilderStep["type"],
-        description: descriptionMatch?.[1] || "",
+        type: stepType as BuilderStep["type"],
+        description,
         params,
       }
     })
@@ -119,7 +136,8 @@ function yamlToSteps(yaml: string): { name: string; description: string; steps: 
       description: descMatch?.[1] || "",
       steps,
     }
-  } catch {
+  } catch (e) {
+    console.error('YAML parse error:', e)
     return null
   }
 }
@@ -129,8 +147,8 @@ export default function TestBuilderPage() {
   const [testDescription, setTestDescription] = useState("Test description")
   const [steps, setSteps] = useState<BuilderStep[]>([
     { id: generateId(), type: "start_motor", params: {}, description: "Initialize motor" },
-    { id: generateId(), type: "set_speed", params: { target_rpm: 1500 }, description: "Set target speed" },
-    { id: generateId(), type: "wait", params: { duration_seconds: 5 }, description: "Wait for stabilization" },
+    { id: generateId(), type: "set_speed", params: { rpm: 1500 }, description: "Set target speed" },
+    { id: generateId(), type: "wait", params: { duration_s: 5 }, description: "Wait for stabilization" },
     { id: generateId(), type: "stop_motor", params: {}, description: "Stop motor" },
   ])
   const [selectedStep, setSelectedStep] = useState<BuilderStep | null>(null)
@@ -174,10 +192,11 @@ export default function TestBuilderPage() {
       const timestamp = new Date().getTime()
       const fileName = `${testName.replace(/\s+/g, "_")}_${timestamp}.yaml`
 
-      // 1. Upload to Storage
+      // 1. Upload to Storage (convert string to Blob)
+      const blob = new Blob([yaml], { type: 'text/yaml' })
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("test-files")
-        .upload(fileName, yaml)
+        .upload(fileName, blob)
 
       if (uploadError) throw uploadError
 

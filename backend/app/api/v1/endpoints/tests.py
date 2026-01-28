@@ -33,6 +33,14 @@ def _run_test_thread(filename: str, controller: MotorController, state: TestStat
     finally:
         state.running = False
         state.current_test = None
+        
+        # Cleanup temp file
+        if filename.startswith("temp_") and os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+                print(f"[API] Cleaned up temp file: {filename}")
+            except Exception as e:
+                print(f"[API] Failed to cleanup temp file: {e}")
 
 @router.get("/")
 def list_tests() -> List[str]:
