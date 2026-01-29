@@ -1,6 +1,15 @@
 # Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
+# Install system dependencies for Weasyprint
+RUN apt-get update && apt-get install -y \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    libffi-dev \
+    shared-mime-info \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set the working directory in the container
 WORKDIR /app
 

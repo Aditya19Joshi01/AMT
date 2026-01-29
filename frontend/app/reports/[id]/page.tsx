@@ -37,6 +37,7 @@ import {
   Loader2,
 } from "lucide-react"
 
+
 export default function ReportDetailPage({
   params,
 }: {
@@ -46,10 +47,40 @@ export default function ReportDetailPage({
   const [report, setReport] = useState<TestReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
     loadReport()
   }, [id])
+
+  const handleDownloadPDF = async () => {
+    if (!id) return
+
+    try {
+      setDownloading(true)
+      const API_URL = "http://localhost:8000"
+      const response = await fetch(`${API_URL}/reports/export/${decodeURIComponent(id)}/pdf`)
+
+      if (!response.ok) {
+        throw new Error("PDF generation failed")
+      }
+
+      // Create blob and download
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${id.replace('.json', '')}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      alert("Failed to download PDF: " + (err instanceof Error ? err.message : "Unknown error"))
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const loadReport = async () => {
     try {
@@ -139,9 +170,24 @@ export default function ReportDetailPage({
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                <FileJson className="w-4 h-4" />
-                Export JSON
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 bg-transparent"
+                onClick={handleDownloadPDF}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    Download PDF
+                  </>
+                )}
               </Button>
             </div>
           </div>
