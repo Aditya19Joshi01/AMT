@@ -12,11 +12,9 @@ import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 import {
-  Play,
   Square,
   CheckCircle2,
   XCircle,
-  Clock,
   ChevronRight,
   Loader2,
   FileText,
@@ -25,32 +23,17 @@ import {
   AlertCircle,
   LayoutDashboard,
 } from "lucide-react"
-
-interface TestDefinition {
-  id: string
-  name: string
-  description: string
-  storage_path: string
-  created_at: string
-}
-
-interface ActiveTestState {
-  running: boolean
-  test: string | null
-  last_error: string | null
-  current_step: number
-  total_steps: number
-  step_name: string
-}
+import { useTestStatus } from "@/contexts/test-status-context"
+import type { TestDefinition } from "@/lib/types"
 
 const API_URL = "http://localhost:8000"
 
 export default function TestRunnerPage() {
   const { user } = useAuth()
+  const { execution, refresh } = useTestStatus()
+
   const [tests, setTests] = useState<TestDefinition[]>([])
   const [selectedTest, setSelectedTest] = useState<TestDefinition | null>(null)
-  const [execution, setExecution] = useState<ActiveTestState | null>(null)
-  const [progress, setProgress] = useState(0)
 
   // Fetch tests
   useEffect(() => {
@@ -65,34 +48,8 @@ export default function TestRunnerPage() {
     }
   }, [user])
 
-  // Poll status
-  useEffect(() => {
-    const poll = async () => {
-      try {
-        const res = await fetch(`${API_URL}/tests/active`)
-        const data: ActiveTestState = await res.json()
-        setExecution(data)
-
-        // Calculate real progress
-        if (data.running && data.total_steps > 0) {
-          const percent = (data.current_step / data.total_steps) * 100
-          setProgress(percent)
-        } else if (!data.running) {
-          setProgress(0)
-        }
-      } catch (e) {
-        console.error("Polling error", e)
-      }
-    }
-
-    const interval = setInterval(poll, 1000)
-    poll() // Initial call
-    return () => clearInterval(interval)
-  }, [])
-
   const runTest = async (test: TestDefinition) => {
     if (!test) return
-    setProgress(0)
     try {
       await fetch(`${API_URL}/tests/execute`, {
         method: "POST",
@@ -103,12 +60,16 @@ export default function TestRunnerPage() {
           test_name: test.name
         })
       })
+      refresh() // Trigger immediate poll
     } catch (e) {
       alert("Failed to trigger test execution")
     }
   }
 
   const isTestRunning = execution?.running
+  const progress = (execution?.running && execution.total_steps > 0)
+    ? (execution.current_step / execution.total_steps) * 100
+    : 100
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
@@ -257,12 +218,13 @@ export default function TestRunnerPage() {
                 </CardContent>
               </Card>
 
-              {/* Execution Status Card */}
-              {execution && (execution.running || execution.last_error) && (
+              {/* Execution Status Card - Shows if Running OR Recent Result exists */}
+              {execution && (execution.running || execution.last_completed) && (
                 <Card className={cn(
                   "border-2 transition-colors",
-                  execution.running && "border-primary bg-primary/5",
-                  execution.last_error && "border-destructive bg-destructive/5"
+                  execution.running ? "border-primary bg-primary/5" :
+                    execution.last_completed?.status === "PASS" ? "border-success/50 bg-success/5" :
+                      "border-destructive/50 bg-destructive/5"
                 )}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -272,65 +234,75 @@ export default function TestRunnerPage() {
                             <Loader2 className="w-4 h-4 animate-spin text-primary" />
                             <span>Test Executing</span>
                           </>
+                        ) : execution.last_completed?.status === "PASS" ? (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 text-success" />
+                            <span>Test Completed</span>
+                          </>
                         ) : (
                           <>
-                            <AlertCircle className="w-4 h-4 text-destructive" />
-                            <span>Last Execution</span>
+                            <XCircle className="w-4 h-4 text-destructive" />
+                            <span>Test Failed</span>
                           </>
                         )}
                       </CardTitle>
                       <Badge
-                        variant={execution.running ? "default" : "destructive"}
+                        variant={execution.running ? "default" : "secondary"}
                         className={cn(
                           "font-semibold",
-                          execution.running && "bg-primary"
+                          execution.running ? "bg-primary" :
+                            execution.last_completed?.status === "PASS" ? "bg-success text-success-foreground hover:bg-success/80" :
+                              "bg-destructive text-destructive-foreground hover:bg-destructive/80"
                         )}
                       >
-                        {execution.running ? "RUNNING" : "FAILED"}
+                        {execution.running ? "RUNNING" : execution.last_completed?.status}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {execution.running && (
-                      <>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">
-                              Step {execution.current_step} of {execution.total_steps}
-                            </span>
-                            <span className="font-mono text-xs">{Math.round(progress)}%</span>
-                          </div>
-                          <Progress value={progress} className="h-2" />
-                        </div>
+                    {/* Progress Bar (Always show 100% if done) */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {execution.running
+                            ? `Step ${execution.current_step} of ${execution.total_steps}`
+                            : "Execution Finished"
+                          }
+                        </span>
+                        <span className="font-mono text-xs">{Math.round(progress)}%</span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
+                    </div>
 
-                        <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-                          <p className="text-sm font-medium text-primary mb-1">Current Step</p>
-                          <p className="font-mono text-xs text-muted-foreground break-all">
-                            {execution.step_name || "Initializing..."}
-                          </p>
-                        </div>
-
-                        <div className="pt-2">
-                          <Link href="/">
-                            <Button variant="outline" size="sm" className="w-full gap-2">
-                              <LayoutDashboard className="w-4 h-4" />
-                              Monitor in Dashboard
-                            </Button>
-                          </Link>
-                        </div>
-                      </>
-                    )}
-                    {execution.last_error && !execution.running && (
-                      <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                        <p className="text-sm font-medium text-destructive mb-1 flex items-center gap-2">
-                          <XCircle className="w-4 h-4" />
-                          Error Details
-                        </p>
-                        <p className="text-sm text-destructive/90">
-                          {execution.last_error}
+                    {execution.running ? (
+                      <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                        <p className="text-sm font-medium text-primary mb-1">Current Step</p>
+                        <p className="font-mono text-xs text-muted-foreground break-all">
+                          {execution.step_name || "Initializing..."}
                         </p>
                       </div>
+                    ) : (
+                      <div className="p-3 rounded-lg bg-background border">
+                        <p className="text-sm font-medium mb-1">Last Run Result</p>
+                        <p className="text-sm text-muted-foreground font-mono">
+                          Test: {execution.last_completed?.test}
+                        </p>
+                        {execution.last_completed?.error && (
+                          <p className="text-sm text-destructive mt-1">
+                            Error: {execution.last_completed.error}
+                          </p>
+                        )}
+                      </div>
                     )}
+
+                    <div className="pt-2">
+                      <Link href={execution.running ? "/" : "/reports"}>
+                        <Button variant="outline" size="sm" className="w-full gap-2">
+                          <LayoutDashboard className="w-4 h-4" />
+                          {execution.running ? "Monitor in Dashboard" : "View Reports"}
+                        </Button>
+                      </Link>
+                    </div>
                   </CardContent>
                 </Card>
               )}

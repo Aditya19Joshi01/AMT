@@ -21,3 +21,18 @@ export interface TestStep {
     params: Record<string, number | string | boolean>
     description?: string
 }
+
+export interface ActiveTestState {
+    running: boolean
+    test: string | null
+    last_error: string | null
+    current_step: number
+    total_steps: number
+    step_name: string
+    last_completed?: {
+        status: "PASS" | "FAIL"
+        test: string
+        time: number
+        error?: string
+    }
+}

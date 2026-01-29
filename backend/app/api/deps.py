@@ -14,6 +14,7 @@ class TestState:
     total_steps = 0
     current_step_index = 0
     current_step_name = ""
+    last_completed = None # Stores result of last run: {status, test, time, error?}
 
 test_state = TestState()
 

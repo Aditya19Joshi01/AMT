@@ -13,6 +13,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { fetchReportList, type ReportListItem } from "@/lib/api/reports"
 import { CheckCircle2, XCircle, Clock, ChevronRight, FileText, Loader2 } from "lucide-react"
@@ -39,9 +47,26 @@ export default function ReportsPage() {
     }
   }
 
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [sortBy, setSortBy] = useState("newest")
+
   const passedCount = reports.filter(r => r.status === "PASS").length
   const failedCount = reports.filter(r => r.status === "FAIL").length
   const passRate = reports.length > 0 ? Math.round((passedCount / reports.length) * 100) : 0
+
+  const filteredReports = reports
+    .filter(r => {
+      const matchesSearch = r.test_name.toLowerCase().includes(searchTerm.toLowerCase()) || r.id.includes(searchTerm)
+      const matchesStatus = statusFilter === "all" || r.status === statusFilter
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => {
+      if (sortBy === "newest") return new Date(b.executed_at).getTime() - new Date(a.executed_at).getTime()
+      if (sortBy === "oldest") return new Date(a.executed_at).getTime() - new Date(b.executed_at).getTime()
+      if (sortBy === "duration") return b.duration_s - a.duration_s
+      return 0
+    })
 
   return (
     <div className="p-4 lg:p-6 space-y-4 lg:space-y-6">
@@ -103,6 +128,40 @@ export default function ReportsPage() {
         </Card>
       </div>
 
+      {/* Filters & Controls */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Search reports..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="PASS">Passed</SelectItem>
+              <SelectItem value="FAIL">Failed</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Sort By" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
+              <SelectItem value="duration">Duration</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {/* Reports Table */}
       <Card>
         <CardHeader>
@@ -134,7 +193,7 @@ export default function ReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {reports.map((report) => (
+                  {filteredReports.map((report) => (
                     <TableRow key={report.id} className="group">
                       <TableCell>
                         <div>

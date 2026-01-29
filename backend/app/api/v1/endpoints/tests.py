@@ -1,5 +1,6 @@
 import os
 import threading
+import time
 from typing import List
 from fastapi import APIRouter, Depends
 from app.api.deps import get_controller, get_test_state, TEST_DIR, TestState
@@ -36,9 +37,20 @@ def _run_test_thread(filename: str, controller: MotorController, state: TestStat
         runner.run(filepath, db_test_id=db_test_id, progress_callback=progress_callback)
         print(f"[API] Test {filename} Completed Successfully")
         state.current_step_index = state.total_steps # Ensure 100% at end
+        state.last_completed = {
+            "status": "PASS",
+            "test": test_name or filename,
+            "time": time.time()
+        }
     except Exception as e:
         print(f"[API] Test {filename} Failed: {e}")
         state.last_error = str(e)
+        state.last_completed = {
+            "status": "FAIL",
+            "test": test_name or filename,
+            "time": time.time(),
+            "error": str(e)
+        }
     finally:
         state.running = False
         state.current_test = None
@@ -94,7 +106,8 @@ def get_active_test(state: TestState = Depends(get_test_state)):
         "last_error": state.last_error,
         "current_step": state.current_step_index,
         "total_steps": state.total_steps,
-        "step_name": state.current_step_name
+        "step_name": state.current_step_name,
+        "last_completed": state.last_completed
     }
 
 class TestExecutionRequest(BaseModel):

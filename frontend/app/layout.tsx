@@ -5,6 +5,8 @@ import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppShell } from "@/components/app-shell"
 import { AuthProvider } from "@/contexts/auth-context"
+import { Toaster } from "@/components/ui/toaster"
+import { TestStatusProvider } from "@/contexts/test-status-context"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
@@ -52,7 +54,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <AppShell>{children}</AppShell>
+            <TestStatusProvider>
+              <AppShell>{children}</AppShell>
+            </TestStatusProvider>
+            <Toaster />
           </AuthProvider>
         </ThemeProvider>
         <Analytics />
