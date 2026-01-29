@@ -10,7 +10,7 @@ import { EventLogPanel } from "@/components/dashboard/event-log"
 import {
   type MotorStatus,
   type TelemetryData,
-} from "@/lib/mock-data"
+} from "@/lib/types"
 import { Activity, Gauge, Thermometer, Zap } from "lucide-react"
 
 export default function DashboardPage() {

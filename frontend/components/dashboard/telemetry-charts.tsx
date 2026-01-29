@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { TelemetryData } from "@/lib/mock-data"
+import type { TelemetryData } from "@/lib/types"
 import {
   LineChart,
   Line,

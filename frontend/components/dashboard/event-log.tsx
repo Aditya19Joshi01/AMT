@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
-import type { EventLog } from "@/lib/mock-data"
+import type { EventLog } from "@/lib/types"
 import { AlertCircle, AlertTriangle, CheckCircle2, Info } from "lucide-react"
 
 interface EventLogPanelProps {

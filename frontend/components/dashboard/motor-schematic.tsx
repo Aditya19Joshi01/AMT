@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import type { MotorStatus } from "@/lib/mock-data"
+import type { MotorStatus } from "@/lib/types"
 
 interface MotorSchematicProps {
   status: MotorStatus
@@ -42,7 +42,7 @@ export function MotorSchematic({ status, rpm, temperature, className }: MotorSch
           className="fill-muted stroke-border"
           strokeWidth="2"
         />
-        
+
         {/* Cooling Fins */}
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <rect
@@ -93,7 +93,7 @@ export function MotorSchematic({ status, rpm, temperature, className }: MotorSch
           className="fill-secondary stroke-border"
           strokeWidth="1.5"
         />
-        
+
         {/* Terminal connectors */}
         <circle cx="62" cy="32" r="3" className="fill-muted-foreground" />
         <circle cx="70" cy="32" r="3" className="fill-muted-foreground" />
