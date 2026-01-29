@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +23,7 @@ import {
   Calendar,
   PlayCircle,
   AlertCircle,
+  LayoutDashboard,
 } from "lucide-react"
 
 interface TestDefinition {
@@ -36,6 +38,9 @@ interface ActiveTestState {
   running: boolean
   test: string | null
   last_error: string | null
+  current_step: number
+  total_steps: number
+  step_name: string
 }
 
 const API_URL = "http://localhost:8000"
@@ -68,13 +73,11 @@ export default function TestRunnerPage() {
         const data: ActiveTestState = await res.json()
         setExecution(data)
 
-        // Simulate progress for visual feedback
-        if (data.running) {
-          setProgress((prev) => {
-            if (prev >= 90) return 90
-            return prev + Math.random() * 10
-          })
-        } else {
+        // Calculate real progress
+        if (data.running && data.total_steps > 0) {
+          const percent = (data.current_step / data.total_steps) * 100
+          setProgress(percent)
+        } else if (!data.running) {
           setProgress(0)
         }
       } catch (e) {
@@ -96,7 +99,8 @@ export default function TestRunnerPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           test_id: test.id,
-          storage_path: test.storage_path
+          storage_path: test.storage_path,
+          test_name: test.name
         })
       })
     } catch (e) {
@@ -291,16 +295,28 @@ export default function TestRunnerPage() {
                       <>
                         <div className="space-y-2">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Progress</span>
+                            <span className="text-muted-foreground">
+                              Step {execution.current_step} of {execution.total_steps}
+                            </span>
                             <span className="font-mono text-xs">{Math.round(progress)}%</span>
                           </div>
                           <Progress value={progress} className="h-2" />
                         </div>
+
                         <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-                          <p className="text-sm font-medium text-primary mb-1">Current Test</p>
+                          <p className="text-sm font-medium text-primary mb-1">Current Step</p>
                           <p className="font-mono text-xs text-muted-foreground break-all">
-                            {execution.test}
+                            {execution.step_name || "Initializing..."}
                           </p>
+                        </div>
+
+                        <div className="pt-2">
+                          <Link href="/">
+                            <Button variant="outline" size="sm" className="w-full gap-2">
+                              <LayoutDashboard className="w-4 h-4" />
+                              Monitor in Dashboard
+                            </Button>
+                          </Link>
                         </div>
                       </>
                     )}

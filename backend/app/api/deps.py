@@ -10,6 +10,10 @@ class TestState:
     running = False
     current_test = None
     last_error = None
+    # Progress tracking
+    total_steps = 0
+    current_step_index = 0
+    current_step_name = ""
 
 test_state = TestState()
 

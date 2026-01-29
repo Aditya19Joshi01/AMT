@@ -25,8 +25,11 @@ class TestRunner:
             data = yaml.safe_load(f)
         return data
 
-    def run(self, yaml_path: str, db_test_id: str = None):
-        """Main entry point to execute a test."""
+    def run(self, yaml_path: str, db_test_id: str = None, progress_callback=None):
+        """
+        Main entry point to execute a test.
+        progress_callback: A function(index, total, name) called before each step.
+        """
         print(f"--- Loading Test: {yaml_path} ---")
         config = self.load_sequence(yaml_path)
         
@@ -54,6 +57,11 @@ class TestRunner:
                 step_type = step.get("step")
                 description = step.get("description", f"Step {i+1}")
                 print(f"\n[Step {i+1}] {step_type}: {description}")
+
+                # Report Progress
+                if progress_callback:
+                    progress_callback(i, len(sequence), description)
+                
                 
                 # Step Timing
                 step_start_iso = datetime.utcnow().isoformat()
