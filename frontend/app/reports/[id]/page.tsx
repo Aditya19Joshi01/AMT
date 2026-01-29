@@ -1,8 +1,7 @@
 "use client"
 
-import { use } from "react"
+import { use, useEffect, useState } from "react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
-import { mockReports, type TestReport } from "@/lib/mock-data"
+import { fetchReport, type TestReport } from "@/lib/api/reports"
 import {
   ArrowLeft,
   CheckCircle2,
@@ -34,18 +33,9 @@ import {
   Copy,
   Thermometer,
   Gauge,
-  Activity,
   AlertCircle,
+  Loader2,
 } from "lucide-react"
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts"
 
 export default function ReportDetailPage({
   params,
@@ -53,35 +43,46 @@ export default function ReportDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
-  const report = mockReports.find((r) => r.execution_info.execution_id === id)
+  const [report, setReport] = useState<TestReport | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  if (!report) {
-    notFound()
+  useEffect(() => {
+    loadReport()
+  }, [id])
+
+  const loadReport = async () => {
+    try {
+      setLoading(true)
+      const data = await fetchReport(decodeURIComponent(id))
+      setReport(data)
+      setError(null)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const temperatureData = report.metrics.temperature.values.map((value, index) => ({
-    time: new Date(report.metrics.temperature.timestamps[index]).toLocaleTimeString("en-US", {
-      hour12: false,
-      minute: "2-digit",
-      second: "2-digit",
-    }),
-    value,
-  }))
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
-  const speedData = report.metrics.speed.values.map((value, index) => ({
-    time: new Date(report.metrics.speed.timestamps[index]).toLocaleTimeString("en-US", {
-      hour12: false,
-      minute: "2-digit",
-      second: "2-digit",
-    }),
-    value,
-  }))
-
-  const maxTemp = Math.max(...report.metrics.temperature.values)
-  const avgSpeed = Math.round(
-    report.metrics.speed.values.reduce((a, b) => a + b, 0) / report.metrics.speed.values.length
-  )
-
+  if (error || !report) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-screen gap-4">
+        <AlertCircle className="w-12 h-12 text-destructive" />
+        <p className="text-destructive">{error || "Report not found"}</p>
+        <Link href="/reports">
+          <Button>Back to Reports</Button>
+        </Link>
+      </div>
+    )
+  }
   return (
     <div className="p-4 lg:p-6 space-y-4 lg:space-y-6">
       {/* Back Navigation */}
@@ -100,14 +101,14 @@ export default function ReportDetailPage({
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <h1 className="text-2xl font-semibold text-foreground">
-                  {report.test_info.test_name}
+                  {report.test_info.name}
                 </h1>
                 <Badge
                   variant={report.summary.overall_result === "PASS" ? "default" : "destructive"}
                   className={cn(
                     "text-sm",
                     report.summary.overall_result === "PASS" &&
-                      "bg-success text-success-foreground"
+                    "bg-success text-success-foreground"
                   )}
                 >
                   {report.summary.overall_result === "PASS" ? (
@@ -124,11 +125,11 @@ export default function ReportDetailPage({
                 <div className="flex items-center gap-1 text-muted-foreground font-mono">
                   <span>ID:</span>
                   <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
-                    {report.execution_info.execution_id}
+                    {report.execution_info.test_id}
                   </code>
                   <button
                     onClick={() =>
-                      navigator.clipboard.writeText(report.execution_info.execution_id)
+                      navigator.clipboard.writeText(report.execution_info.test_id)
                     }
                     className="p-1 hover:bg-muted rounded"
                   >
@@ -142,14 +143,6 @@ export default function ReportDetailPage({
                 <FileJson className="w-4 h-4" />
                 Export JSON
               </Button>
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                <FileText className="w-4 h-4" />
-                Export PDF
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                <FileSpreadsheet className="w-4 h-4" />
-                Export Excel
-              </Button>
             </div>
           </div>
 
@@ -158,20 +151,20 @@ export default function ReportDetailPage({
             <div>
               <p className="text-xs text-muted-foreground">Start Time</p>
               <p className="font-mono text-sm">
-                {new Date(report.execution_info.start_time).toLocaleString()}
+                {new Date(report.execution_info.started_at).toLocaleString()}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">End Time</p>
               <p className="font-mono text-sm">
-                {new Date(report.execution_info.end_time).toLocaleString()}
+                {new Date(report.execution_info.ended_at).toLocaleString()}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Duration</p>
               <p className="font-mono text-sm flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                {report.execution_info.duration_seconds}s
+                {report.execution_info.duration_s.toFixed(2)}s
               </p>
             </div>
           </div>
@@ -179,7 +172,7 @@ export default function ReportDetailPage({
       </Card>
 
       {/* Section 2: Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className={cn(
           "col-span-2",
           report.summary.overall_result === "PASS" ? "border-success/50" : "border-destructive/50"
@@ -243,23 +236,11 @@ export default function ReportDetailPage({
           <CardContent>
             <p className={cn(
               "text-2xl font-semibold",
-              maxTemp > 70 && "text-warning",
-              maxTemp > 80 && "text-destructive"
+              report.metrics.max_temperature_c > 70 && "text-warning",
+              report.metrics.max_temperature_c > 80 && "text-destructive"
             )}>
-              {maxTemp}°C
+              {report.metrics.max_temperature_c.toFixed(1)}°C
             </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-              <Gauge className="w-3 h-3" />
-              Avg Speed
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold">{avgSpeed} RPM</p>
           </CardContent>
         </Card>
       </div>
@@ -274,10 +255,10 @@ export default function ReportDetailPage({
         </CardHeader>
         <CardContent>
           <Accordion type="multiple" className="space-y-2">
-            {report.steps.map((step) => (
+            {report.steps.map((step, index) => (
               <AccordionItem
-                key={step.step_number}
-                value={`step-${step.step_number}`}
+                key={index}
+                value={`step-${index}`}
                 className={cn(
                   "border rounded-lg px-4",
                   step.status === "PASS" && "border-success/30 bg-success/5",
@@ -290,43 +271,35 @@ export default function ReportDetailPage({
                       className={cn(
                         "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
                         step.status === "PASS" && "bg-success text-success-foreground",
-                        step.status === "FAIL" && "bg-destructive text-destructive-foreground",
-                        step.status === "SKIPPED" && "bg-muted text-muted-foreground"
+                        step.status === "FAIL" && "bg-destructive text-destructive-foreground"
                       )}
                     >
                       {step.status === "PASS" ? (
                         <CheckCircle2 className="w-4 h-4" />
-                      ) : step.status === "FAIL" ? (
-                        <XCircle className="w-4 h-4" />
                       ) : (
-                        step.step_number
+                        <XCircle className="w-4 h-4" />
                       )}
                     </div>
                     <div className="flex-1 text-left">
                       <p className="font-medium text-foreground">{step.description}</p>
                       <p className="text-xs text-muted-foreground font-mono">
-                        {step.step_name}
+                        {step.step}
                       </p>
                     </div>
-                    <div className="flex items-center gap-4 text-sm">
-                      <Badge
-                        variant={step.status === "PASS" ? "default" : "destructive"}
-                        className={cn(
-                          step.status === "PASS" && "bg-success text-success-foreground"
-                        )}
-                      >
-                        {step.status}
-                      </Badge>
-                      <span className="text-muted-foreground font-mono">
-                        {step.duration_ms}ms
-                      </span>
-                    </div>
+                    <Badge
+                      variant={step.status === "PASS" ? "default" : "destructive"}
+                      className={cn(
+                        step.status === "PASS" && "bg-success text-success-foreground"
+                      )}
+                    >
+                      {step.status}
+                    </Badge>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pt-2 pb-4">
                   <div className="grid lg:grid-cols-2 gap-4">
                     {/* Input Parameters */}
-                    {Object.keys(step.inputs).length > 0 && (
+                    {Object.keys(step.input_params).length > 0 && (
                       <div>
                         <h4 className="text-sm font-medium mb-2">Input Parameters</h4>
                         <Table>
@@ -337,7 +310,7 @@ export default function ReportDetailPage({
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {Object.entries(step.inputs).map(([key, value]) => (
+                            {Object.entries(step.input_params).map(([key, value]) => (
                               <TableRow key={key}>
                                 <TableCell className="py-2 font-mono text-xs">{key}</TableCell>
                                 <TableCell className="py-2 font-mono text-xs">{String(value)}</TableCell>
@@ -349,32 +322,29 @@ export default function ReportDetailPage({
                     )}
 
                     {/* Observed Values */}
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">Observed Values</h4>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="h-8">Metric</TableHead>
-                            <TableHead className="h-8">Value</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {Object.entries(step.observed).map(([key, value]) => (
-                            <TableRow key={key}>
-                              <TableCell className="py-2 font-mono text-xs">{key}</TableCell>
-                              <TableCell
-                                className={cn(
-                                  "py-2 font-mono text-xs",
-                                  (key === "max" || key === "min") && "font-semibold"
-                                )}
-                              >
-                                {String(value)}
-                              </TableCell>
+                    {Object.keys(step.observed).length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Observed Values</h4>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="h-8">Metric</TableHead>
+                              <TableHead className="h-8">Value</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {Object.entries(step.observed).map(([key, value]) => (
+                              <TableRow key={key}>
+                                <TableCell className="py-2 font-mono text-xs">{key}</TableCell>
+                                <TableCell className="py-2 font-mono text-xs">
+                                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
                   </div>
 
                   {/* Failure Details */}
@@ -385,7 +355,7 @@ export default function ReportDetailPage({
                         <div>
                           <p className="text-sm font-medium text-destructive">Failure Details</p>
                           <p className="text-sm text-destructive/80 mt-1">
-                            {step.failure_details}
+                            {JSON.stringify(step.failure_details)}
                           </p>
                         </div>
                       </div>
@@ -398,122 +368,29 @@ export default function ReportDetailPage({
         </CardContent>
       </Card>
 
-      {/* Section 4: Metrics & Charts */}
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Thermometer className="w-4 h-4" />
-              Temperature Over Time
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={temperatureData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="time"
-                    tick={{ fontSize: 10 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    domain={["auto", "auto"]}
-                    tick={{ fontSize: 10 }}
-                    tickLine={false}
-                    axisLine={false}
-                    width={40}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "6px",
-                      fontSize: "12px",
-                    }}
-                    formatter={(value) => [`${value}°C`, "Temperature"]}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="hsl(var(--chart-3))"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+      {/* Section 4: Metrics */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Test Metrics</CardTitle>
+          <CardDescription>Performance metrics captured during execution</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Max Temperature</p>
+              <p className="text-xl font-semibold">{report.metrics.max_temperature_c.toFixed(2)}°C</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Gauge className="w-4 h-4" />
-              Speed Over Time
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={speedData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="time"
-                    tick={{ fontSize: 10 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    domain={["auto", "auto"]}
-                    tick={{ fontSize: 10 }}
-                    tickLine={false}
-                    axisLine={false}
-                    width={40}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "6px",
-                      fontSize: "12px",
-                    }}
-                    formatter={(value) => [`${value} RPM`, "Speed"]}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="hsl(var(--chart-1))"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Avg Speed</p>
+              <p className="text-xl font-semibold">{report.metrics.avg_speed_rpm.toFixed(2)} RPM</p>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Artifacts */}
-      {report.artifacts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Artifacts</CardTitle>
-            <CardDescription>Files generated during test execution</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {report.artifacts.map((artifact) => (
-                <Button key={artifact} variant="outline" size="sm" className="gap-2 bg-transparent">
-                  <Download className="w-4 h-4" />
-                  {artifact}
-                </Button>
-              ))}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Duration</p>
+              <p className="text-xl font-semibold">{report.metrics.test_duration_s.toFixed(2)}s</p>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

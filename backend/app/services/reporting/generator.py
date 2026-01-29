@@ -70,9 +70,7 @@ class ReportBuilder:
             self.report.metrics.avg_speed_rpm = global_stats.get("avg_speed", 0.0)
             self.report.metrics.test_duration_s = duration
 
-        # Save to Disk
-        return self._save_to_disk()
-
+            # Save to Disk and Upload
         return self._save_to_disk()
 
     def _save_to_disk(self) -> str:
@@ -89,18 +87,29 @@ class ReportBuilder:
             
         print(f"[Report] Saved to {filepath}")
         
-        # Upload to Supabase
-        self._upload_to_supabase(filename, json_content)
+        # Upload to Supabase and cleanup on success
+        upload_success = self._upload_to_supabase(filename, json_content)
+        
+        # Delete local file after successful upload
+        if upload_success:
+            try:
+                os.remove(filepath)
+                print(f"[Report] Cleaned up local file: {filename}")
+            except Exception as e:
+                print(f"[Report] Failed to delete local file: {e}")
         
         return filename
 
-    def _upload_to_supabase(self, filename: str, content: str):
+    def _upload_to_supabase(self, filename: str, content: str) -> bool:
+        """Upload report to Supabase Storage and insert record in test_runs table.
+        Returns True if successful, False otherwise."""
         try:
             from app.core.supabase import get_supabase
             client = get_supabase()
             
-            # 1. Upload JSON
-            client.storage.from_("test-reports").upload(filename, content.encode())
+            # 1. Upload JSON as Blob
+            blob = content.encode('utf-8')
+            client.storage.from_("test-reports").upload(filename, blob)
             print(f"[Report] Uploaded {filename} to Supabase Storage")
             
             # 2. Insert Run Record
@@ -117,6 +126,9 @@ class ReportBuilder:
             else:
                 print("[Report] Skipping DB insert (no db_test_id provided)")
             
+            return True
+            
         except Exception as e:
             print(f"[Report] Failed to upload to Supabase: {e}")
+            return False
 
