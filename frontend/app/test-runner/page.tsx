@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Progress } from "@/components/ui/progress"
+import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-// import { mockTests } from "@/lib/mock-data"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 import {
@@ -17,6 +18,10 @@ import {
   Clock,
   ChevronRight,
   Loader2,
+  FileText,
+  Calendar,
+  PlayCircle,
+  AlertCircle,
 } from "lucide-react"
 
 interface TestDefinition {
@@ -40,6 +45,7 @@ export default function TestRunnerPage() {
   const [tests, setTests] = useState<TestDefinition[]>([])
   const [selectedTest, setSelectedTest] = useState<TestDefinition | null>(null)
   const [execution, setExecution] = useState<ActiveTestState | null>(null)
+  const [progress, setProgress] = useState(0)
 
   // Fetch tests
   useEffect(() => {
@@ -61,6 +67,16 @@ export default function TestRunnerPage() {
         const res = await fetch(`${API_URL}/tests/active`)
         const data: ActiveTestState = await res.json()
         setExecution(data)
+
+        // Simulate progress for visual feedback
+        if (data.running) {
+          setProgress((prev) => {
+            if (prev >= 90) return 90
+            return prev + Math.random() * 10
+          })
+        } else {
+          setProgress(0)
+        }
       } catch (e) {
         console.error("Polling error", e)
       }
@@ -73,6 +89,7 @@ export default function TestRunnerPage() {
 
   const runTest = async (test: TestDefinition) => {
     if (!test) return
+    setProgress(0)
     try {
       await fetch(`${API_URL}/tests/execute`, {
         method: "POST",
@@ -83,64 +100,92 @@ export default function TestRunnerPage() {
         })
       })
     } catch (e) {
-      alert("Failed to trigger test")
+      alert("Failed to trigger test execution")
     }
   }
 
-  const stopTest = () => {
-    alert("Stop functionality not implemented in backend API yet")
-  }
+  const isTestRunning = execution?.running
 
   return (
-    <div className="p-4 lg:p-6 space-y-4 lg:space-y-6">
+    <div className="p-4 lg:p-6 space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Test Runner</h1>
-        <p className="text-sm text-muted-foreground">
-          Execute motor tests and view results
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Test Runner</h1>
+          <p className="text-muted-foreground mt-1">
+            Execute motor tests and monitor real-time progress
+          </p>
+        </div>
+        {isTestRunning && (
+          <Badge variant="default" className="gap-2 px-4 py-2 bg-primary animate-pulse">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Test in Progress
+          </Badge>
+        )}
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_400px] gap-4 lg:gap-6">
+      <div className="grid lg:grid-cols-2 gap-6">
         {/* Test List */}
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader>
-            <CardTitle className="text-sm font-medium">Available Tests</CardTitle>
-            <CardDescription>Select a test to view details and run</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Available Tests
+            </CardTitle>
+            <CardDescription>
+              Select a test configuration to execute
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px]">
-              <div className="space-y-2">
+          <CardContent className="flex-1">
+            <ScrollArea className="h-[500px] pr-4">
+              <div className="space-y-3">
                 {tests.map((test) => (
                   <button
                     key={test.id}
                     onClick={() => setSelectedTest(test)}
-                    disabled={execution?.running}
+                    disabled={isTestRunning && selectedTest?.id !== test.id}
                     className={cn(
-                      "w-full text-left p-4 rounded-lg border transition-colors",
+                      "w-full text-left p-4 rounded-lg border transition-all duration-200 group",
                       selectedTest?.id === test.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50 hover:bg-muted/50",
-                      execution?.running && "opacity-50 cursor-not-allowed"
+                        ? "border-primary bg-primary/10 shadow-md ring-2 ring-primary/20"
+                        : "border-border hover:border-primary/60 hover:bg-accent/50 hover:shadow-sm",
+                      isTestRunning && selectedTest?.id !== test.id && "opacity-40 cursor-not-allowed"
                     )}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium text-foreground">{test.name}</h3>
-                        <p className="text-sm text-muted-foreground mt-0.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-foreground truncate">
+                            {test.name}
+                          </h3>
+                          {selectedTest?.id === test.id && (
+                            <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                           {test.description}
                         </p>
-                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                          <span>Created {new Date(test.created_at).toLocaleDateString()}</span>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(test.created_at).toLocaleDateString()}
+                          </span>
                         </div>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      <ChevronRight className={cn(
+                        "w-5 h-5 text-muted-foreground transition-transform flex-shrink-0",
+                        selectedTest?.id === test.id && "transform translate-x-1 text-primary"
+                      )} />
                     </div>
                   </button>
                 ))}
                 {tests.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    No tests found. Save a test in the Builder first.
+                  <div className="text-center py-12">
+                    <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground/40" />
+                    <p className="text-muted-foreground font-medium mb-1">No tests available</p>
+                    <p className="text-sm text-muted-foreground">
+                      Create a test in the Test Builder to get started
+                    </p>
                   </div>
                 )}
               </div>
@@ -149,77 +194,142 @@ export default function TestRunnerPage() {
         </Card>
 
         {/* Test Details & Execution */}
-        <div className="space-y-4">
-          {/* Selected Test Details */}
+        <div className="space-y-6">
           {selectedTest ? (
-            <Card>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{selectedTest.name}</CardTitle>
-                    <CardDescription className="mt-1">
-                      {selectedTest.description}
-                    </CardDescription>
+            <>
+              {/* Test Details Card */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <CardTitle className="text-xl mb-2">{selectedTest.name}</CardTitle>
+                      <CardDescription className="text-base">
+                        {selectedTest.description}
+                      </CardDescription>
+                    </div>
                   </div>
-                  {!execution?.running ? (
-                    <Button onClick={() => runTest(selectedTest)} className="gap-2">
-                      <Play className="w-4 h-4" />
-                      Run Test
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Separator />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Created</p>
+                      <p className="text-sm font-medium">
+                        {new Date(selectedTest.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Storage</p>
+                      <p className="text-sm font-mono text-xs truncate">
+                        {selectedTest.storage_path}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {!isTestRunning ? (
+                    <Button
+                      onClick={() => runTest(selectedTest)}
+                      className="w-full gap-2 h-12 text-base font-semibold"
+                      size="lg"
+                    >
+                      <PlayCircle className="w-5 h-5" />
+                      Execute Test
                     </Button>
                   ) : (
                     <Button
-                      variant="destructive"
-                      onClick={stopTest}
-                      className="gap-2"
-                      disabled={true} // Disabled until stop implemented
+                      variant="outline"
+                      className="w-full gap-2 h-12 cursor-not-allowed"
+                      size="lg"
+                      disabled
                     >
-                      <Square className="w-4 h-4" />
-                      Stop
+                      <Square className="w-5 h-5" />
+                      Stop Test
+                      <span className="text-xs ml-2">(Coming Soon)</span>
                     </Button>
                   )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Click Run to execute this test on the connected motor setup.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="flex items-center justify-center h-[300px]">
-              <div className="text-center text-muted-foreground">
-                <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>Select a test to view details</p>
-              </div>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
 
-          {/* Execution Status */}
-          {execution && (execution.running || execution.last_error) && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center justify-between">
-                  Status
-                  <Badge variant={execution.running ? "default" : "secondary"}>
-                    {execution.running ? "RUNNING" : "STOPPED"}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {execution.running && (
-                  <div className="flex items-center gap-2 text-primary">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="font-mono text-sm">Executing {execution.test}...</span>
-                  </div>
-                )}
-                {execution.last_error && (
-                  <div className="mt-2 text-destructive text-sm bg-destructive/10 p-2 rounded">
-                    Error: {execution.last_error}
-                  </div>
-                )}
-              </CardContent>
+              {/* Execution Status Card */}
+              {execution && (execution.running || execution.last_error) && (
+                <Card className={cn(
+                  "border-2 transition-colors",
+                  execution.running && "border-primary bg-primary/5",
+                  execution.last_error && "border-destructive bg-destructive/5"
+                )}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        {execution.running ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                            <span>Test Executing</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-4 h-4 text-destructive" />
+                            <span>Last Execution</span>
+                          </>
+                        )}
+                      </CardTitle>
+                      <Badge
+                        variant={execution.running ? "default" : "destructive"}
+                        className={cn(
+                          "font-semibold",
+                          execution.running && "bg-primary"
+                        )}
+                      >
+                        {execution.running ? "RUNNING" : "FAILED"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {execution.running && (
+                      <>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Progress</span>
+                            <span className="font-mono text-xs">{Math.round(progress)}%</span>
+                          </div>
+                          <Progress value={progress} className="h-2" />
+                        </div>
+                        <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                          <p className="text-sm font-medium text-primary mb-1">Current Test</p>
+                          <p className="font-mono text-xs text-muted-foreground break-all">
+                            {execution.test}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                    {execution.last_error && !execution.running && (
+                      <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                        <p className="text-sm font-medium text-destructive mb-1 flex items-center gap-2">
+                          <XCircle className="w-4 h-4" />
+                          Error Details
+                        </p>
+                        <p className="text-sm text-destructive/90">
+                          {execution.last_error}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          ) : (
+            <Card className="flex items-center justify-center h-[500px] border-dashed">
+              <div className="text-center max-w-sm mx-auto px-4">
+                <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                  <PlayCircle className="w-10 h-10 text-muted-foreground/60" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">No Test Selected</h3>
+                <p className="text-muted-foreground text-sm">
+                  Choose a test from the list to view details and execute
+                </p>
+              </div>
             </Card>
           )}
         </div>
